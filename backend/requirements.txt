@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+psycopg2-binary
+chromadb
+langchain
+langchain-groq
+langchain-core
+PyMuPDF
+pdfplumber
+pytesseract
+python-dotenv
+python-multipart
