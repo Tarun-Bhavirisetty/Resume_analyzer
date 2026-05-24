@@ -12,7 +12,7 @@ def get_llm():
     return ChatGroq(
         groq_api_key=os.getenv("GROQ_API_KEY"),
         temperature=0,
-        model_name="llama-3.3-70b-versatile"
+        model_name="llama-3.1-8b-instant"
     )
 
 def extract_skills(text: str) -> str:
