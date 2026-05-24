@@ -48,49 +48,71 @@ def generate_job_requirements(role: str) -> str:
     return result.content
 
 def calculate_ats_score(skills: str, requirements: str):
-    llm = get_llm()
-    prompt = PromptTemplate.from_template("""
-    Candidate Skills:
-    {skills}
 
-    Job Requirements:
-    {requirements}
+    # =========================
+    # Normalize Candidate Skills
+    # =========================
+    candidate_set = set(
+        skill.strip().lower()
+        for skill in skills.split(",")
+        if skill.strip()
+    )
 
-    Extract:
-    - Required technical skills
-    - Matched skills
-    - Missing skills
+    # =========================
+    # Extract Technical Skills From Requirements
+    # =========================
+    requirement_keywords = re.findall(
+        r"\b[A-Za-z0-9\+\#\.\-]+\b",
+        requirements.lower()
+    )
 
-    STRICT RULES:
-    - Output ONLY valid JSON
-    - No explanation
-    - No text before/after JSON
+    # Remove unwanted common words
+    stop_words = {
+        "and", "or", "with", "using", "knowledge",
+        "experience", "understanding", "ability",
+        "responsibilities", "requirements",
+        "tools", "technologies", "skills",
+        "technical", "strong", "good",
+        "develop", "developing", "developer"
+    }
 
-    Format:
-    {{
-        "matched": ["skill1", "skill2"],
-        "missing": ["skill3", "skill4"],
-        "total_required": number
-    }}
-    """)
+    required_set = set(
+        word.strip()
+        for word in requirement_keywords
+        if len(word.strip()) > 1
+        and word.strip() not in stop_words
+    )
 
-    chain = prompt | llm
-    result = chain.invoke({"skills": skills, "requirements": requirements})
+    # =========================
+    # Matched Skills
+    # =========================
+    matched = sorted(
+        list(candidate_set.intersection(required_set))
+    )
 
-    try:
-        json_text = re.search(r"\{.*\}", result.content, re.DOTALL).group()
-        data = json.loads(json_text)
-    except:
-        return 0, [], []
+    # =========================
+    # Missing Skills
+    # =========================
+    missing = sorted(
+        list(required_set - candidate_set)
+    )
 
-    matched = data.get("matched", [])
-    missing = data.get("missing", [])
-    total = data.get("total_required", len(matched) + len(missing))
-
-    if total == 0:
+    # =========================
+    # Avoid Division By Zero
+    # =========================
+    if len(required_set) == 0:
         return 0, matched, missing
 
-    score = int((len(matched) / total) * 100) if total > 0 else 0
+    # =========================
+    # ATS Score Calculation
+    # =========================
+    score = int(
+        (len(matched) / len(required_set)) * 100
+    )
+
+    # Limit score between 0-100
+    score = max(0, min(score, 100))
+
     return score, matched, missing
 
 def suggest_roles(skills: str):
