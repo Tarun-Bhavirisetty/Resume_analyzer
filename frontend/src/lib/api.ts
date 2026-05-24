@@ -1,4 +1,4 @@
-const API_URL = "https://resume-analyzer-6jed.onrender.com";
+const API_URL = "https://resume-analyzer-6jed.onrender.com/api";
 
 export async function uploadResume(file: File) {
   try {
