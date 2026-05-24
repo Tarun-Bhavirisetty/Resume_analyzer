@@ -48,7 +48,9 @@ def generate_job_requirements(role: str) -> str:
     return result.content
 
 def calculate_ats_score(skills: str, requirements: str):
+
     llm = get_llm()
+
     prompt = PromptTemplate.from_template("""
     Candidate Skills:
     {skills}
@@ -75,22 +77,43 @@ def calculate_ats_score(skills: str, requirements: str):
     """)
 
     chain = prompt | llm
-    result = chain.invoke({"skills": skills, "requirements": requirements})
+
+    result = chain.invoke({
+        "skills": skills,
+        "requirements": requirements
+    })
 
     try:
-        json_text = re.search(r"\{.*\}", result.content, re.DOTALL).group()
+        json_text = re.search(
+            r"\{.*\}",
+            result.content,
+            re.DOTALL
+        ).group()
+
         data = json.loads(json_text)
-    except:
+
+    except Exception as e:
+
+        print(f"Error parsing ATS score JSON: {e}")
+
         return 0, [], []
 
     matched = data.get("matched", [])
+
     missing = data.get("missing", [])
-    total = data.get("total_required", len(matched) + len(missing))
+
+    total = data.get(
+        "total_required",
+        len(matched) + len(missing)
+    )
 
     if total == 0:
         return 0, matched, missing
 
-    score = int((len(matched) / total) * 100) if total > 0 else 0
+    score = int(
+        (len(matched) / total) * 100
+    )
+
     return score, matched, missing
 
 def suggest_roles(skills: str):
