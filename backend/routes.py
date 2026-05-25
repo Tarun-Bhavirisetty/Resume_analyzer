@@ -80,6 +80,7 @@ async def analyze_resume(
         ).first()
 
         if not db_resume:
+
             raise HTTPException(
                 status_code=404,
                 detail="Resume not found"
@@ -88,25 +89,34 @@ async def analyze_resume(
         combined_input = db_resume.raw_text
 
         if request.manual_skills:
-            combined_input += " " + request.manual_skills
+
+            combined_input += (
+                " " + request.manual_skills
+            )
 
         # =========================
         # Structure Analysis
         # =========================
-        present_sections, missing_sections = parser.check_resume_sections(
-            db_resume.raw_text
+        present_sections, missing_sections = (
+            parser.check_resume_sections(
+                db_resume.raw_text
+            )
         )
 
         # =========================
         # Skill Extraction
         # =========================
-        skills = ai_engine.extract_skills(combined_input)
+        skills = ai_engine.extract_skills(
+            combined_input
+        )
 
         # =========================
         # Job Requirements
         # =========================
-        requirements = ai_engine.generate_job_requirements(
-            request.target_role
+        requirements = (
+            ai_engine.generate_job_requirements(
+                request.target_role
+            )
         )
 
         # =========================
@@ -122,11 +132,19 @@ async def analyze_resume(
         # =========================
         # Suggested Roles
         # =========================
-        roles = ai_engine.suggest_roles(skills)
+        roles = ai_engine.suggest_roles(
+            skills
+        )
 
         roles_str = ",".join(
-            [r.get("role", "") for r in roles]
-        ) if isinstance(roles, list) else str(roles)
+            [
+                r.get("role", "")
+                for r in roles
+            ]
+        ) if isinstance(
+            roles,
+            list
+        ) else str(roles)
 
         # =========================
         # Courses
@@ -134,79 +152,100 @@ async def analyze_resume(
         courses = []
 
         if missing_skills:
-            courses = ai_engine.get_course_links(
-                ", ".join(missing_skills)
+
+            courses = (
+                ai_engine.get_course_links(
+                    ", ".join(missing_skills)
+                )
             )
 
         # =========================
         # Job Links
         # =========================
-        job_links = ai_engine.generate_job_links(
-            roles_str
+        job_links = (
+            ai_engine.generate_job_links(
+                roles_str
+            )
         )
 
         # =========================
         # Projects
         # =========================
-        projects = ai_engine.suggest_projects(
-            skills,
-            request.target_role,
-            ", ".join(missing_skills)
+        projects = (
+            ai_engine.suggest_projects(
+                skills,
+                request.target_role,
+                ", ".join(missing_skills)
+            )
         )
 
         # =========================
         # Improved Resume
         # =========================
-        improved_resume = ""
+        improved_resume = {
+            "summary": "",
+            "skills": [],
+            "experience": [],
+            "projects": [],
+            "education": ""
+        }
 
         if ats_score < 70:
 
-            improved_resume = ai_engine.generate_improved_resume(
-                db_resume.raw_text,
-                request.target_role,
-                ", ".join(missing_skills)
+            improved_resume = (
+                ai_engine.generate_improved_resume(
+                    db_resume.raw_text,
+                    request.target_role,
+                    ", ".join(missing_skills)
+                )
             )
 
-        # =========================
-        # Convert Complex Objects
-        # =========================
-        matched_skills_json = json.dumps(matched_skills)
+            # Safety fallback
+            if not isinstance(
+                improved_resume,
+                dict
+            ):
 
-        missing_skills_json = json.dumps(missing_skills)
-
-        structure_present_json = json.dumps(
-            present_sections
-        )
-
-        structure_missing_json = json.dumps(
-            missing_sections
-        )
-
-        improved_resume_json = json.dumps(
-            improved_resume
-        )
+                improved_resume = {
+                    "summary": "",
+                    "skills": [],
+                    "experience": [],
+                    "projects": [],
+                    "education": ""
+                }
 
         # =========================
         # Save To Database
         # =========================
         db_analysis = models.AnalysisResult(
+
             resume_id=request.resume_id,
 
             target_role=request.target_role,
 
             extracted_skills=str(skills),
 
-            matched_skills=matched_skills_json,
+            matched_skills=json.dumps(
+                matched_skills
+            ),
 
-            missing_skills=missing_skills_json,
+            missing_skills=json.dumps(
+                missing_skills
+            ),
 
             ats_score=int(ats_score),
 
-            structure_present=structure_present_json,
+            structure_present=json.dumps(
+                present_sections
+            ),
 
-            structure_missing=structure_missing_json,
+            structure_missing=json.dumps(
+                missing_sections
+            ),
 
-            improved_resume=improved_resume_json
+            improved_resume=json.dumps(
+                improved_resume
+            )
         )
 
         db.add(db_analysis)
@@ -219,6 +258,7 @@ async def analyze_resume(
         # API Response
         # =========================
         return {
+
             "id": db_analysis.id,
 
             "ats_score": ats_score,
@@ -245,6 +285,8 @@ async def analyze_resume(
         }
 
     except Exception as e:
+
+        print(f"Analyze Resume Error: {e}")
 
         raise HTTPException(
             status_code=500,
