@@ -188,8 +188,14 @@ def generate_job_links(roles: str) -> str:
         links.append(f"{role.strip()} - {link}")
     return "\n".join(links)
 
-def generate_improved_resume(original_text: str, role: str, missing_skills: str):
+def generate_improved_resume(
+    original_text: str,
+    role: str,
+    missing_skills: str
+):
+
     llm = get_llm()
+
     prompt = PromptTemplate.from_template("""
     You are an expert resume writer.
 
@@ -206,7 +212,7 @@ def generate_improved_resume(original_text: str, role: str, missing_skills: str)
     - Improve the resume to match the target role
     - Add relevant skills naturally (do NOT fake experience)
     - Make it ATS-friendly
-    
+
     STRICT RULES:
     - Output ONLY valid JSON
     - No explanation
@@ -218,33 +224,69 @@ def generate_improved_resume(original_text: str, role: str, missing_skills: str)
       "skills": ["Skill 1", "Skill 2"],
       "experience": [
         {{
-          "role_and_company": "Software Engineer Intern, Google (June 2023 - Aug 2023)",
-          "bullet_points": ["Developed X...", "Improved Y by 20%..."]
+          "role_and_company": "Software Engineer Intern, Google",
+          "bullet_points": [
+            "Developed X...",
+            "Improved Y by 20%..."
+          ]
         }}
       ],
       "projects": [
         {{
           "title": "AI Dashboard",
-          "bullet_points": ["Built using React and Python...", "Achieved 95% accuracy..."]
+          "bullet_points": [
+            "Built using React and Python...",
+            "Achieved 95% accuracy..."
+          ]
         }}
       ],
       "education": "B.S. in Computer Science..."
     }}
 
-    Keep it realistic and professional based on the original resume.
+    Keep it realistic and professional.
     """)
+
     chain = prompt | llm
+
     result = chain.invoke({
         "resume": original_text,
         "role": role,
         "skills": missing_skills
     })
+
     try:
-        json_text = re.search(r"\{.*\}", result.content, re.DOTALL).group()
-        return json.loads(json_text)
+
+        json_text = re.search(
+            r"\{.*\}",
+            result.content,
+            re.DOTALL
+        ).group()
+
+        data = json.loads(json_text)
+
+        # Ensure valid dictionary response
+        if not isinstance(data, dict):
+
+            raise ValueError(
+                "Improved resume output is not a dictionary"
+            )
+
+        return data
+
     except Exception as e:
-        print(f"Error parsing generate_improved_resume JSON: {e}")
-        return None
+
+        print(
+            f"Error parsing generate_improved_resume JSON: {e}"
+        )
+
+        # Always return valid dictionary
+        return {
+            "summary": "",
+            "skills": [],
+            "experience": [],
+            "projects": [],
+            "education": ""
+        }
 
 def suggest_projects(skills: str, role: str, missing_skills: str):
     llm = get_llm()
